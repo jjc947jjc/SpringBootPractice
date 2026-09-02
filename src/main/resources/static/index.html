@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>学生管理系统</title>
+    <style>
+        /* ========== CSS：只管好不好看 ========== */
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+        }
+        .top-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        input, button {
+            padding: 6px 10px;
+        }
+        button {
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background: dodgerblue;
+            color: white;
+        }
+        .msg {
+            text-align: center;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== HTML：摆好空架子 ========== -->
+<h1>学生管理系统</h1>
+
+<div class="top-bar">
+    <input id="searchInputByName" placeholder="输入姓名搜索">
+    <input id="searchInputById" placeholder="输入学号搜索">
+    <button onclick="searchStudent()">搜索</button>
+    <input id="addName" placeholder="姓名">
+    <input id="addGender" placeholder="性别">
+    <input id="addClassId" placeholder="班级">
+    <input id="addScore" placeholder="分数">
+    <button onclick="addStudent()">新增</button>
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>姓名</th>
+        <th>性别</th>
+        <th>班级</th>
+        <th>分数</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+</table>
+
+<p id="msg" class="msg"></p>
+
+<script>
+    // ========== JS：页面的"大脑" ==========
+
+    // ① 通用请求工具：fetch 只写这一次，所有接口都走它
+    function request(url, method, data) {
+        let options = {
+            method: method,
+            headers: { "Content-Type": "application/json" }
+        };
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+        return fetch(url, options).then(res => res.json());
+    }
+
+    // ② 查所有学生（页面加载时自动调用）
+    function loadAll() {
+        request("http://localhost:8080/students", "GET").then(result => {
+            if (result.code === 1) {
+                renderTable(result.data);
+            } else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    // ③ 渲染表格：把学生数组变成表格行（纯前端，不调接口）
+    function renderTable(students) {
+        let html = "";
+        for (let stu of students) {
+            html += `<tr>
+                    <td>${stu.id}</td>
+                    <td>${stu.name}</td>
+                    <td>${stu.gender}</td>
+                    <td>${stu.classId}</td>
+                    <td>${stu.score}</td>
+                    <td><button onclick="deleteStudent(${stu.id})">删除</button></td>
+                </tr>`;
+        }
+        document.getElementById("tbody").innerHTML = html;
+    }
+
+    // ④ 新增学生：读输入框 → 调 POST 接口
+    function addStudent() {
+        let stu = {
+            name: document.getElementById("addName").value,
+            gender: document.getElementById("addGender").value,
+            score: parseFloat(document.getElementById("addScore").value)
+        };
+        request("http://localhost:8080/students", "POST", stu).then(result => {
+            if (result.code === 1) {
+                showMsg("新增成功！");
+                loadAll();
+            } else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    // ⑤ 搜索：读搜索框 → 调 search 接口
+    function searchStudent() {
+        let name = document.getElementById("searchInput").value;
+        request("http://localhost:8080/students/search?name=" + name, "GET").then(result => {
+            if (result.code === 1) {
+                renderTable(result.data);
+            } else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    // ⑥ 删除：调 DELETE 接口
+    function deleteStudent(id) {
+        request("http://localhost:8080/students/" + id, "DELETE").then(result => {
+            if (result.code === 1) {
+                showMsg("删除成功！");
+                loadAll();
+            } else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    // ⑦ 提示信息
+    function showMsg(msg) {
+        document.getElementById("msg").textContent = msg;
+    }
+
+    // ⑧ 页面加载完成 → 自动查所有学生
+    window.onload = loadAll;
+</script>
+
+</body>
+</html>
