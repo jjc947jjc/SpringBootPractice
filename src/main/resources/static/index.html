@@ -4,51 +4,103 @@
     <meta charset="UTF-8">
     <title>学生管理系统</title>
     <style>
-        /* ========== CSS：只管好不好看 ========== */
+
+
         body {
             font-family: "Microsoft YaHei", sans-serif;
-            padding: 20px;
+            padding: 0 20px 20px 260px;
             background: #f5f5f5;
         }
-        h1 {
-            text-align: center;
+
+        .first {
+            background-color: dodgerblue;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 15px;
         }
+        .first h1 { color: aliceblue; font-weight: bold; }
+        .first a  { color: aliceblue; text-decoration: none; }
+
         .top-bar {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin: 30px 0 25px;
             align-items: center;
+            flex-wrap: wrap;
         }
-        input, button {
-            padding: 6px 10px;
-        }
-        button {
-            cursor: pointer;
-        }
+
+        input, button { padding: 6px 10px; }
+        button { cursor: pointer; }
+
         table {
-            width: 100%;
             border-collapse: collapse;
             background: white;
         }
         th, td {
             border: 1px solid #ddd;
+            padding: 8px 6px;
+            text-align: center;
+        }
+        th { background: dodgerblue; color: white; }
+
+
+        th:not(:last-child) { width: 80px; }
+        table{
+            width: 100%;
+        }
+
+
+        th:last-child { width: 150px; }
+        td:last-child { white-space: nowrap; }
+        td:last-child button { margin: 0 5px; }
+
+        .msg { text-align: center; color: #999; }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .update-box{
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .update-box input {
+            width: 90%;
             padding: 10px;
-            text-align: center;
+            margin: 10px 0;
         }
-        th {
-            background: dodgerblue;
-            color: white;
-        }
-        .msg {
-            text-align: center;
-            color: #999;
-        }
+        .sidebar { position: fixed; width: 200px; }
+        .main    { margin-left: 200px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
     </style>
 </head>
 <body>
 
-<!-- ========== HTML：摆好空架子 ========== -->
-<h1>学生管理系统</h1>
+<div class="sidebar">
+<section id="pageList" class="page active" onclick="switchPage(this)">学生管理</section>
+<section id="pageCompete"  class="page" onclick="switchPage(this)">班级成绩比拼</section>
+<section id="pageInformation" class="page" onclick="switchPage(this)">个人信息</section>
+</div>
+
+<div class="main">
+<div class="first">
+    <h1>学生管理系统</h1>
+    <a href="http://localhost:8080/login.html">退出登录</a>
+</div>
+
 
 <div class="top-bar">
     <input id="searchInputByName" placeholder="输入姓名搜索">
@@ -59,6 +111,7 @@
     <input id="addClassId" placeholder="班级">
     <input id="addScore" placeholder="分数">
     <button onclick="addStudent()">新增</button>
+    <button onclick="again()">重置</button>
 </div>
 
 <table>
@@ -77,10 +130,38 @@
 
 <p id="msg" class="msg"></p>
 
-<script>
-    // ========== JS：页面的"大脑" ==========
 
-    // ① 通用请求工具：fetch 只写这一次，所有接口都走它
+
+
+<div id="updateOverlay" class="overlay" style="display: none;">
+    <div class="update-box">
+        <h2>编辑学生信息</h2>
+        <label>姓名</label>
+        <input id="name" type="text" >
+        <label>性别</label>
+        <input id="gender" type="text">
+        <label>班级</label>
+        <input id="classId" type="text" >
+        <label>分数</label>
+        <input id="score" type="text">
+
+        <button onclick="update()">确认</button>
+        <button onclick="misUpdate()">取消</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+<script>
+
     function request(url, method, data) {
         let options = {
             method: method,
@@ -89,10 +170,17 @@
         if (data) {
             options.body = JSON.stringify(data);
         }
-        return fetch(url, options).then(res => res.json());
+        return fetch(url, options).then(async res => {
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                return { code: 0, message: "请求失败：HTTP " + res.status };
+            }
+        });
     }
+    let currentEditId =null;
 
-    // ② 查所有学生（页面加载时自动调用）
     function loadAll() {
         request("http://localhost:8080/students", "GET").then(result => {
             if (result.code === 1) {
@@ -102,8 +190,18 @@
             }
         });
     }
+    function switchPage(menuItem) {
 
-    // ③ 渲染表格：把学生数组变成表格行（纯前端，不调接口）
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+        document.getElementById(menuItem.dataset.page).classList.add('active');
+
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        menuItem.classList.add('active');
+    }
+
+
+
     function renderTable(students) {
         let html = "";
         for (let stu of students) {
@@ -113,17 +211,20 @@
                     <td>${stu.gender}</td>
                     <td>${stu.classId}</td>
                     <td>${stu.score}</td>
-                    <td><button onclick="deleteStudent(${stu.id})">删除</button></td>
+                    <td><button onclick="updateStudent(${stu.id})">编辑</button>
+                    <button onclick="deleteStudent(${stu.id})">删除</button></td>
+
                 </tr>`;
         }
         document.getElementById("tbody").innerHTML = html;
     }
 
-    // ④ 新增学生：读输入框 → 调 POST 接口
+
     function addStudent() {
         let stu = {
             name: document.getElementById("addName").value,
             gender: document.getElementById("addGender").value,
+            classId:parseFloat(document.getElementById("addClassId").value),
             score: parseFloat(document.getElementById("addScore").value)
         };
         request("http://localhost:8080/students", "POST", stu).then(result => {
@@ -135,11 +236,20 @@
             }
         });
     }
+    function again(){
+            document.getElementById("addName").value="",
+            document.getElementById("addGender").value="",
+            document.getElementById("addClassId").value="",
+            document.getElementById("addScore").value=""
+    }
 
-    // ⑤ 搜索：读搜索框 → 调 search 接口
+
     function searchStudent() {
-        let name = document.getElementById("searchInput").value;
-        request("http://localhost:8080/students/search?name=" + name, "GET").then(result => {
+        let name = document.getElementById("searchInputByName").value.trim();
+        let id = document.getElementById("searchInputById").value.trim();
+
+
+        request("http://localhost:8080/students/search?name="+encodeURIComponent(name)+"&id="+encodeURIComponent(id) , "GET").then(result => {
             if (result.code === 1) {
                 renderTable(result.data);
             } else {
@@ -148,7 +258,46 @@
         });
     }
 
-    // ⑥ 删除：调 DELETE 接口
+    function updateStudent(id) {
+        currentEditId=id;
+        request("http://localhost:8080/students/" + id, "GET").then(result => {
+            if(result.code===1) {
+                let s = result.data;
+                document.getElementById("name").value = s.name;
+                document.getElementById("gender").value = s.gender;
+                document.getElementById("classId").value = s.classId;
+                document.getElementById("score").value = s.score;
+                document.getElementById("updateOverlay").style.display = "flex";
+            }else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    function update(){
+        let stu = {
+            id: currentEditId,
+            name: document.getElementById("name").value.trim(),
+            gender: document.getElementById("gender").value.trim(),
+            classId: parseFloat(document.getElementById("classId").value),
+            score: parseFloat(document.getElementById("score").value)
+        };
+        request("http://localhost:8080/students" , "PUT",stu).then(result => {
+            if (result.code===1){
+                document.getElementById("updateOverlay").style.display = "none";
+                showMsg("编辑成功!");
+                loadAll();
+            } else {
+                showMsg(result.message);
+            }
+        });
+    }
+
+    function misUpdate(){
+        document.getElementById("updateOverlay").style.display = "none";
+    }
+
+
     function deleteStudent(id) {
         request("http://localhost:8080/students/" + id, "DELETE").then(result => {
             if (result.code === 1) {
@@ -160,12 +309,11 @@
         });
     }
 
-    // ⑦ 提示信息
+
     function showMsg(msg) {
         document.getElementById("msg").textContent = msg;
     }
 
-    // ⑧ 页面加载完成 → 自动查所有学生
     window.onload = loadAll;
 </script>
 

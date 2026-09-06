@@ -21,8 +21,10 @@ public interface StudentMapper {
             "SELECT * FROM student "+
             "<where>"+
             "<if test ='name!=null'> AND name LIKE CONCAT('%',#{name},'%')</if>"+
-            "<if test ='score!=null'> AND score =#{score}</if>"+
+            "<if test ='id!=null'> AND id =#{id}</if>"+
             "</where>"+
             "</script>")
-    List<Student> search(@Param("name") String name ,@Param("score") Integer score);
+    List<Student> search(String name,Integer id);
+    @Select("SELECT COUNT(*) FROM admin WHERE username=#{username} AND password =#{password}")
+    int login(Manager manager);
 }

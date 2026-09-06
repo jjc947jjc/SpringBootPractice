@@ -2,6 +2,7 @@ package MybatisDemo1;
 
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.jdbc.Null;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,12 +55,23 @@ public class StudentController {
 
     @GetMapping("/students/search")
     public Result search(@RequestParam(required = false) String name,
-                                @RequestParam(required = false) Integer score){
-        boolean flag = studentService.search(name, score).isEmpty();
+                                @RequestParam(required = false) Integer id){
+        boolean flag = studentService.search(name, id).isEmpty();
         if (flag){
             return Result.error("不存在这样的学生！");
         }else {
-            return Result.success(studentService.search(name, score));
+            return Result.success(studentService.search(name, id));
         }
     }
+    @PostMapping("/login")
+    @CrossOrigin(origins = "*")
+    public Result login(@RequestBody Manager manager){
+        int i =studentService.login(manager);
+        if (i==1){
+            return Result.success(null);
+        }else {
+            return Result.error( "账号或密码错误！请重试！");
+        }
+    }
+
 }

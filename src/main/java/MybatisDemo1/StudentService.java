@@ -26,7 +26,10 @@ public class StudentService {
     public int deleteById(Integer id){
         return studentMapper.deleteById(id);
     }
-    public List<Student> search( String name, Integer score){
-        return studentMapper.search(name,score);
+    public List<Student> search( String name, Integer id){
+        return studentMapper.search(name,id);
+    }
+    public int login (Manager manager){
+        return studentMapper.login(manager);
     }
 }
